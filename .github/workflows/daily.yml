@@ -1,0 +1,66 @@
+name: A-share post-close scan and GitHub Pages
+on:
+  schedule:
+    # 工作日北京时间17:37（UTC 09:37）；交易所收盘后，避免UTC整点任务拥堵
+    - cron: '37 9 * * 1-5'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'site/template.html'
+      - 'requirements.txt'
+      - '.github/workflows/daily.yml'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: ashares-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      built: ${{ steps.scan.outputs.built }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Fetch and validate latest market data
+        id: scan
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: |
+          set +e
+          python src/run.py --account 28000 --max-scan 120
+          result=$?
+          if [ "$result" -ne 0 ]; then
+            echo '数据采集未通过校验，本次跳过部署，不生成虚假推荐'
+            echo 'built=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'built=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Prepare Pages
+        if: steps.scan.outputs.built == 'true'
+        uses: actions/configure-pages@v5
+      - name: Upload page artifact
+        if: steps.scan.outputs.built == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+  deploy:
+    needs: build
+    if: needs.build.outputs.built == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish website
+        id: deployment
+        uses: actions/deploy-pages@v4
