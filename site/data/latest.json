@@ -1,0 +1,9 @@
+{
+  "status": "awaiting_data",
+  "as_of": "2026-11-03",
+  "generated_at": "2026-11-03T08:34:14+00:00",
+  "universe_count": 0,
+  "candidates": [],
+  "disclaimer": "规则化候选观察名单，不构成具体买卖推荐；收盘后研究数据非实时行情，未验证盈利能力。",
+  "error": "尚未运行联网数据采集；不可展示真实候选股票"
+}
